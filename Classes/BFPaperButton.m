@@ -507,74 +507,76 @@ CGFloat const bfPaperButton_tapCircleDiameterDefault = -2.f;
         }
     }
     
-    // Calculate the tap circle's ending diameter:
-    CGFloat tapCircleFinalDiameter = [self calculateTapCircleFinalDiameter];
-    
-    // Create a UIView which we can modify for its frame value later (specifically, the ability to use .center):
-    UIView *tapCircleLayerSizerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tapCircleFinalDiameter, tapCircleFinalDiameter)];
-    tapCircleLayerSizerView.center = self.rippleFromTapLocation ? self.tapPoint : CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
-    
-    // Calculate starting path:
-    UIView *startingRectSizerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, self.tapCircleDiameterStartValue, self.tapCircleDiameterStartValue)];
-    startingRectSizerView.center = tapCircleLayerSizerView.center;
-    
-    // Create starting circle path:
-    UIBezierPath *startingCirclePath = [UIBezierPath bezierPathWithRoundedRect:startingRectSizerView.frame cornerRadius:self.tapCircleDiameterStartValue / 2.f];
-    
-    // Calculate ending path:
-    UIView *endingRectSizerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tapCircleFinalDiameter, tapCircleFinalDiameter)];
-    endingRectSizerView.center = tapCircleLayerSizerView.center;
-    
-    // Create ending circle path:
-    UIBezierPath *endingCirclePath = [UIBezierPath bezierPathWithRoundedRect:endingRectSizerView.frame cornerRadius:tapCircleFinalDiameter / 2.f];
-    
-    // Create tap circle:
-    CAShapeLayer *tapCircle = [CAShapeLayer layer];
-    tapCircle.fillColor = self.tapCircleColor.CGColor;
-    tapCircle.strokeColor = [UIColor clearColor].CGColor;
-    tapCircle.borderColor = [UIColor clearColor].CGColor;
-    tapCircle.borderWidth = 0;
-    tapCircle.path = startingCirclePath.CGPath;
-    
-    // Create a mask if we are not going to ripple over bounds:
-    if (!self.rippleBeyondBounds) {
-        CAShapeLayer *mask = [CAShapeLayer layer];
-        mask.path = [UIBezierPath bezierPathWithRoundedRect:self.fadeAndClippingMaskRect cornerRadius:self.cornerRadius].CGPath;
-        mask.fillColor = [UIColor blackColor].CGColor;
-        mask.strokeColor = [UIColor clearColor].CGColor;
-        mask.borderColor = [UIColor clearColor].CGColor;
-        mask.borderWidth = 0;
+    if (self.rippleEffectOn) {
+        // Calculate the tap circle's ending diameter:
+        CGFloat tapCircleFinalDiameter = [self calculateTapCircleFinalDiameter];
         
-        // Set tap circle layer's mask to the mask:
-        tapCircle.mask = mask;
+        // Create a UIView which we can modify for its frame value later (specifically, the ability to use .center):
+        UIView *tapCircleLayerSizerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tapCircleFinalDiameter, tapCircleFinalDiameter)];
+        tapCircleLayerSizerView.center = self.rippleFromTapLocation ? self.tapPoint : CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
+        
+        // Calculate starting path:
+        UIView *startingRectSizerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, self.tapCircleDiameterStartValue, self.tapCircleDiameterStartValue)];
+        startingRectSizerView.center = tapCircleLayerSizerView.center;
+        
+        // Create starting circle path:
+        UIBezierPath *startingCirclePath = [UIBezierPath bezierPathWithRoundedRect:startingRectSizerView.frame cornerRadius:self.tapCircleDiameterStartValue / 2.f];
+        
+        // Calculate ending path:
+        UIView *endingRectSizerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tapCircleFinalDiameter, tapCircleFinalDiameter)];
+        endingRectSizerView.center = tapCircleLayerSizerView.center;
+        
+        // Create ending circle path:
+        UIBezierPath *endingCirclePath = [UIBezierPath bezierPathWithRoundedRect:endingRectSizerView.frame cornerRadius:tapCircleFinalDiameter / 2.f];
+        
+        // Create tap circle:
+        CAShapeLayer *tapCircle = [CAShapeLayer layer];
+        tapCircle.fillColor = self.tapCircleColor.CGColor;
+        tapCircle.strokeColor = [UIColor clearColor].CGColor;
+        tapCircle.borderColor = [UIColor clearColor].CGColor;
+        tapCircle.borderWidth = 0;
+        tapCircle.path = startingCirclePath.CGPath;
+        
+        // Create a mask if we are not going to ripple over bounds:
+        if (!self.rippleBeyondBounds) {
+            CAShapeLayer *mask = [CAShapeLayer layer];
+            mask.path = [UIBezierPath bezierPathWithRoundedRect:self.fadeAndClippingMaskRect cornerRadius:self.cornerRadius].CGPath;
+            mask.fillColor = [UIColor blackColor].CGColor;
+            mask.strokeColor = [UIColor clearColor].CGColor;
+            mask.borderColor = [UIColor clearColor].CGColor;
+            mask.borderWidth = 0;
+            
+            // Set tap circle layer's mask to the mask:
+            tapCircle.mask = mask;
+        }
+        
+        // Add tap circle to array and view:
+        [self.rippleAnimationQueue addObject:tapCircle];
+        [self.layer insertSublayer:tapCircle above:self.backgroundColorFadeLayer];
+        
+        
+        // Grow tap-circle animation (performed on mask layer):
+        CABasicAnimation *tapCircleGrowthAnimation = [CABasicAnimation animationWithKeyPath:@"path"];
+        tapCircleGrowthAnimation.duration = self.touchDownAnimationDuration;
+        tapCircleGrowthAnimation.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
+        tapCircleGrowthAnimation.fromValue = (__bridge id)startingCirclePath.CGPath;
+        tapCircleGrowthAnimation.toValue = (__bridge id)endingCirclePath.CGPath;
+        tapCircleGrowthAnimation.fillMode = kCAFillModeForwards;
+        tapCircleGrowthAnimation.removedOnCompletion = NO;
+        
+        // Fade in self.animationLayer:
+        CABasicAnimation *fadeIn = [CABasicAnimation animationWithKeyPath:@"opacity"];
+        fadeIn.duration = self.touchDownAnimationDuration;
+        fadeIn.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
+        fadeIn.fromValue = [NSNumber numberWithFloat:0.f];
+        fadeIn.toValue = [NSNumber numberWithFloat:1.f];
+        fadeIn.fillMode = kCAFillModeForwards;
+        fadeIn.removedOnCompletion = NO;
+        
+        // Add the animations to the layers:
+        [tapCircle addAnimation:tapCircleGrowthAnimation forKey:@"animatePath"];
+        [tapCircle addAnimation:fadeIn forKey:@"opacityAnimation"];
     }
-    
-    // Add tap circle to array and view:
-    [self.rippleAnimationQueue addObject:tapCircle];
-    [self.layer insertSublayer:tapCircle above:self.backgroundColorFadeLayer];
-    
-    
-    // Grow tap-circle animation (performed on mask layer):
-    CABasicAnimation *tapCircleGrowthAnimation = [CABasicAnimation animationWithKeyPath:@"path"];
-    tapCircleGrowthAnimation.duration = self.touchDownAnimationDuration;
-    tapCircleGrowthAnimation.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
-    tapCircleGrowthAnimation.fromValue = (__bridge id)startingCirclePath.CGPath;
-    tapCircleGrowthAnimation.toValue = (__bridge id)endingCirclePath.CGPath;
-    tapCircleGrowthAnimation.fillMode = kCAFillModeForwards;
-    tapCircleGrowthAnimation.removedOnCompletion = NO;
-    
-    // Fade in self.animationLayer:
-    CABasicAnimation *fadeIn = [CABasicAnimation animationWithKeyPath:@"opacity"];
-    fadeIn.duration = self.touchDownAnimationDuration;
-    fadeIn.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
-    fadeIn.fromValue = [NSNumber numberWithFloat:0.f];
-    fadeIn.toValue = [NSNumber numberWithFloat:1.f];
-    fadeIn.fillMode = kCAFillModeForwards;
-    fadeIn.removedOnCompletion = NO;
-    
-    // Add the animations to the layers:
-    [tapCircle addAnimation:tapCircleGrowthAnimation forKey:@"animatePath"];
-    [tapCircle addAnimation:fadeIn forKey:@"opacityAnimation"];
 }
 
 - (void)lowerButtonAndFadeOutBackground

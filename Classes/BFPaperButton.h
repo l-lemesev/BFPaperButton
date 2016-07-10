@@ -111,6 +111,8 @@ extern CGFloat const bfPaperButton_tapCircleDiameterDefault;
 /** A CGFLoat representing the duration of the animations which take place on touch UP! Default is 2 * touchDownAnimationDuration seconds. */
 @property CGFloat touchUpAnimationDuration;
 
+@property BOOL rippleEffectOn;
+
 
 #pragma mark Prettyness and Behaviour
 /** The corner radius which propagates through to the sub layers. Default is 0. */
